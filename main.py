@@ -76,9 +76,7 @@ def bypass_link(url):
                     time_taken = end_time - start_time
                     # Kiểm tra thời gian phản hồi có nằm trong khoảng từ 0.1 đến 0.2 giây không
                     if 0.1 <= time_taken <= 0.2:
-                        return match.group(1), time_taken
-                    else:
-                        raise Exception(f"Time taken {time_taken:.3f} seconds is out of range (0.1 to 0.2 seconds)")
+                        return match.group(1), time_taken  
                 else:
                     raise Exception("Failed to find content key")
     except Exception as e:
