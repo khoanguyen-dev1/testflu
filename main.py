@@ -51,7 +51,7 @@ def bypass_link(url):
         if not hwid:
             raise Exception("Invalid HWID in URL")
 
-        time_taken = (end_time - start_time).total_seconds()
+        time_taken = time.time()
         endpoints = [
             {
                 "url": f"https://flux.li/android/external/start.php?HWID={hwid}",
@@ -81,10 +81,11 @@ def bypass_link(url):
             response_text = fetch(url, headers)
             if endpoint == endpoints[-1]:
                 match = re.search(key_regex, response_text)
-                if match:
+                 if match:
                     end_time = time.time()
                     time_taken = end_time - start_time
-                    return match.group(1), time_taken
+                    if 0.1 <= time_taken <= 0.2:
+                        return match.group(1), time_taken
                 else:
                     raise Exception("Failed to find content key")
     except Exception as e:
