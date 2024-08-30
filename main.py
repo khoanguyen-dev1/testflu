@@ -5,11 +5,11 @@ import os
 import requests
 import time
 import re
+
 app = Flask(__name__)
 key_regex = r'let content = \("([^"]+)"\);'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 port = int(os.getenv('PORT', 8080))
-
 
 # Cấu hình logging
 logger = logging.getLogger('api_usage')
@@ -35,11 +35,9 @@ def get_client_ip():
 def index():
     return render_template('index.html')
 
-key_regex = r'let content = \("([^"]+)"\);'
-
 def fetch(url, headers):
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)  # Đặt timeout cho yêu cầu HTTP
         response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as e:
@@ -51,20 +49,12 @@ def bypass_link(url):
         if not hwid:
             raise Exception("Invalid HWID in URL")
 
-        time_taken = time.time()
+        start_time = time.time()  # Bắt đầu tính thời gian
+
         endpoints = [
-            {
-                "url": f"https://flux.li/android/external/start.php?HWID={hwid}",
-                "referer": ""
-            },
-            {
-                "url": "https://flux.li/android/external/check1.php?hash={hash}",
-                "referer": "https://linkvertise.com"
-            },
-            {
-                "url": "https://flux.li/android/external/main.php?hash={hash}",
-                "referer": "https://linkvertise.com"
-            }
+            {"url": f"https://flux.li/android/external/start.php?HWID={hwid}", "referer": ""},
+            {"url": "https://flux.li/android/external/check1.php?hash={hash}", "referer": "https://linkvertise.com"},
+            {"url": "https://flux.li/android/external/main.php?hash={hash}", "referer": "https://linkvertise.com"}
         ]
 
         for endpoint in endpoints:
@@ -76,37 +66,35 @@ def bypass_link(url):
                 'DNT': '1',
                 'Connection': 'close',
                 'Referer': referer,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x66) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
             }
             response_text = fetch(url, headers)
-            if endpoint == endpoints[-1]:
+            if endpoint == endpoints[-1]:  # Chỉ kiểm tra endpoint cuối cùng
                 match = re.search(key_regex, response_text)
-                 if match:
-                    end_time = time.time()
+                if match:
+                    end_time = time.time()  # Kết thúc tính thời gian
                     time_taken = end_time - start_time
+                    # Kiểm tra thời gian phản hồi có nằm trong khoảng từ 0.1 đến 0.2 giây không
                     if 0.1 <= time_taken <= 0.2:
                         return match.group(1), time_taken
+                    else:
+                        raise Exception(f"Time taken {time_taken:.3f} seconds is out of range (0.1 to 0.2 seconds)")
                 else:
                     raise Exception("Failed to find content key")
     except Exception as e:
         raise Exception(f"Failed to bypass link. Error: {e}")
 
-@app.route("/")
-def home():
-    return jsonify({"message": "Invalid Endpoint"})
-
 @app.route("/api/fluxus")
 def bypass():
     url = request.args.get("url")
-    if url.startswith("https://flux.li/android/external/start.php?HWID="):
+    if url and url.startswith("https://flux.li/android/external/start.php?HWID="):
         try:
             content, time_taken = bypass_link(url)
             return jsonify({"key": content, "time_taken": time_taken, "credit": "UwU"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
-        return jsonify({"message": "Please Enter Fluxus Link!"})
-
+        return jsonify({"message": "Please Enter a Valid Fluxus Link!"})
 
 if __name__ == '__main__':
     app.run(
