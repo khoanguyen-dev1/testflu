@@ -5,6 +5,7 @@ import os
 import requests
 import time
 import re
+import random  # Thêm import cho thư viện random
 
 app = Flask(__name__)
 key_regex = r'let content = \("([^"]+)"\);'
@@ -37,12 +38,14 @@ def index():
 
 def fetch(url, headers):
     try:
-         fake_time = random.uniform(0.1, 0.2)
+        # Giả lập thời gian phản hồi từ 0.1 đến 0.2 giây
+        fake_time = random.uniform(0.1, 0.2)
         time.sleep(fake_time)
 
+        # Thực hiện yêu cầu HTTP
         response = requests.get(url, headers=headers, timeout=10)  # Đặt timeout cho yêu cầu HTTP
         response.raise_for_status()
-        return response.text
+        return response.text, fake_time  # Trả về cả nội dung và thời gian giả
     except requests.exceptions.RequestException as e:
         raise Exception(f"Failed to fetch URL: {url}. Error: {e}")
 
@@ -71,7 +74,7 @@ def bypass_link(url):
                 'Referer': referer,
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
             }
-            response_text = fetch(url, headers)
+            response_text, fake_time = fetch(url, headers)
             if endpoint == endpoints[-1]:  # Chỉ kiểm tra endpoint cuối cùng
                 match = re.search(key_regex, response_text)
                 if match:
@@ -88,6 +91,13 @@ def bypass():
     url = request.args.get("url")
     if url and url.startswith("https://flux.li/android/external/start.php?HWID="):
         try:
+            headers = {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'DNT': '1',
+                'Connection': 'close',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+            }
             content, fake_time = fetch(url, headers)
             return jsonify({"key": content, "time_taken": fake_time, "credit": "UwU"})
         except Exception as e:
