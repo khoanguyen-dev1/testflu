@@ -98,7 +98,7 @@ def bypass():
                 'Connection': 'close',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
             }
-            content, fake_time = fetch(url, headers)
+            content = bypass_link(url), fake_time = fetch(url, headers)
             return jsonify({"key": content, "time_taken": fake_time, "credit": "UwU"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
