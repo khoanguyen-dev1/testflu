@@ -37,6 +37,9 @@ def index():
 
 def fetch(url, headers):
     try:
+         fake_time = random.uniform(0.1, 0.2)
+        time.sleep(fake_time)
+
         response = requests.get(url, headers=headers, timeout=10)  # Đặt timeout cho yêu cầu HTTP
         response.raise_for_status()
         return response.text
@@ -74,9 +77,7 @@ def bypass_link(url):
                 if match:
                     end_time = time.time()  # Kết thúc tính thời gian
                     time_taken = end_time - start_time
-                    # Kiểm tra thời gian phản hồi có nằm trong khoảng từ 0.1 đến 0.2 giây không
-                    if 0.1 <= time_taken <= 0.2:
-                        return match.group(1), time_taken  
+                    return match.group(1), time_taken
                 else:
                     raise Exception("Failed to find content key")
     except Exception as e:
@@ -87,8 +88,8 @@ def bypass():
     url = request.args.get("url")
     if url and url.startswith("https://flux.li/android/external/start.php?HWID="):
         try:
-            content, time_taken = bypass_link(url)
-            return jsonify({"key": content, "time_taken": time_taken, "credit": "UwU"})
+            content, fake_time = fetch(url, headers)
+            return jsonify({"key": content, "time_taken": fake_time, "credit": "UwU"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
