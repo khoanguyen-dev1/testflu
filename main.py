@@ -6,7 +6,7 @@ import requests
 import time
 import re
 import random  # Thêm import cho thư viện random
-
+request_count = 0
 app = Flask(__name__)
 key_regex = r'let content = \("([^"]+)"\);'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
@@ -104,7 +104,10 @@ def bypass():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"message": "Please Enter a Valid Fluxus Link!"})
-
+        
+@app.route("/check")
+def check():
+    return jsonify({"request_count": request_count , "credit" : "UwU"})
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
