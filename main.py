@@ -5,8 +5,8 @@ import os
 import requests
 import time
 import re
-import random  # Thêm import cho thư viện random
-request_count = 0
+import random
+
 app = Flask(__name__)
 key_regex = r'let content = \("([^"]+)"\);'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
@@ -16,13 +16,27 @@ port = int(os.getenv('PORT', 8080))
 logger = logging.getLogger('api_usage')
 logger.setLevel(logging.INFO)
 
-# Sử dụng thư mục tạm cho logs
-log_file_path = '/tmp/api_usage.log'  # Đường dẫn lưu log cho Vercel
+log_file_path = '/tmp/api_usage.log'
 file_handler = logging.FileHandler(log_file_path)
 file_handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
+
+# Path to the file that stores request count
+count_file_path = '/tmp/request_count.txt'
+
+def read_request_count():
+    """Read the current request count from file."""
+    if os.path.exists(count_file_path):
+        with open(count_file_path, 'r') as f:
+            return int(f.read().strip())
+    return 0
+
+def write_request_count(count):
+    """Write the request count to file."""
+    with open(count_file_path, 'w') as f:
+        f.write(str(count))
 
 def get_client_ip():
     """Hàm để lấy địa chỉ IP của client, xem xét cả trường hợp đằng sau proxy."""
@@ -43,9 +57,9 @@ def fetch(url, headers):
         time.sleep(fake_time)
 
         # Thực hiện yêu cầu HTTP
-        response = requests.get(url, headers=headers, timeout=10)  # Đặt timeout cho yêu cầu HTTP
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        return response.text, fake_time  # Trả về cả nội dung và thời gian giả
+        return response.text, fake_time
     except requests.exceptions.RequestException as e:
         raise Exception(f"Failed to fetch URL: {url}. Error: {e}")
 
@@ -55,7 +69,7 @@ def bypass_link(url):
         if not hwid:
             raise Exception("Invalid HWID in URL")
 
-        start_time = time.time()  # Bắt đầu tính thời gian
+        start_time = time.time()
 
         endpoints = [
             {"url": f"https://flux.li/android/external/start.php?HWID={hwid}", "referer": ""},
@@ -78,7 +92,7 @@ def bypass_link(url):
             if endpoint == endpoints[-1]:  # Chỉ kiểm tra endpoint cuối cùng
                 match = re.search(key_regex, response_text)
                 if match:
-                    end_time = time.time()  # Kết thúc tính thời gian
+                    end_time = time.time()
                     time_taken = end_time - start_time
                     return match.group(1), time_taken
                 else:
@@ -88,6 +102,10 @@ def bypass_link(url):
 
 @app.route("/api/fluxus")
 def bypass():
+    global request_count
+    request_count = read_request_count() + 1
+    write_request_count(request_count)
+    
     url = request.args.get("url")
     if url and url.startswith("https://flux.li/android/external/start.php?HWID="):
         try:
@@ -99,18 +117,21 @@ def bypass():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
             }
             content, fake_time = bypass_link(url)
-            return jsonify({"key": content, "time_taken": "0.1", "credit": "UwU"})
+            return jsonify({"key": content, "time_taken": str(fake_time), "credit": "UwU"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"message": "Please Enter a Valid Fluxus Link!"})
-        
+
 @app.route("/check")
 def check():
-    return jsonify({"request_count": request_count , "credit" : "UwU"})
+    request_count = read_request_count()
+    return jsonify({"request_count": request_count, "credit": "UwU"})
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',
         port=port,
         debug=False  # Đảm bảo rằng debug=False trong môi trường sản xuất
     )
+
