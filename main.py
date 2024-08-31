@@ -6,6 +6,7 @@ import re
 import random
 from flask import Flask, request, jsonify, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
+import sqlite3
 
 app = Flask(__name__)
 key_regex = r'let content = \("([^"]+)"\);'
@@ -23,25 +24,45 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# Path to the file that stores request count
-count_file_path = '/path/to/your/persistent/request_count.txt'
+# Path to the SQLite database file
+db_file_path = '/tmp/api_usage.db'
+
+def init_db():
+    """Initialize the SQLite database and create the request count table if it does not exist."""
+    with sqlite3.connect(db_file_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS request_count (
+                id INTEGER PRIMARY KEY,
+                count INTEGER NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            INSERT OR IGNORE INTO request_count (id, count) VALUES (1, 0)
+        ''')
+        conn.commit()
 
 def read_request_count():
-    """Read the current request count from file."""
+    """Read the current request count from the database."""
     try:
-        if os.path.exists(count_file_path):
-            with open(count_file_path, 'r') as f:
-                return int(f.read().strip())
-        return 0
+        with sqlite3.connect(db_file_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT count FROM request_count WHERE id = 1')
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+            return 0
     except Exception as e:
         logger.error(f"Error reading request count: {e}")
         return 0
 
 def write_request_count(count):
-    """Write the request count to file."""
+    """Write the request count to the database."""
     try:
-        with open(count_file_path, 'w') as f:
-            f.write(str(count))
+        with sqlite3.connect(db_file_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE request_count SET count = ? WHERE id = 1', (count,))
+            conn.commit()
     except Exception as e:
         logger.error(f"Error writing request count: {e}")
 
@@ -138,6 +159,7 @@ def check():
         return jsonify({"error": "Internal Server Error"}), 500
 
 if __name__ == '__main__':
+    init_db()
     app.run(
         host='0.0.0.0',
         port=port,
