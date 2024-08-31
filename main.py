@@ -99,7 +99,7 @@ def bypass():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
             }
             content, fake_time = bypass_link(url)
-            return jsonify({"key": content, "time_taken": "0,1", "credit": "UwU"})
+            return jsonify({"key": content, "time_taken": "0.1", "credit": "UwU"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
