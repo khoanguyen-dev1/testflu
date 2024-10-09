@@ -1,6 +1,7 @@
 import logging
 from flask import Flask, request, jsonify, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_cors import CORS
 import os
 import requests
 import time
@@ -8,6 +9,7 @@ import re
 import random
 
 app = Flask(__name__)
+CORS(app)
 key_regex = r'let content = \("([^"]+)"\);'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 port = int(os.getenv('PORT', 8080))
