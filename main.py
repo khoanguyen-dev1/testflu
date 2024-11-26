@@ -67,63 +67,68 @@ def fetch(url, headers):
 
 def bypass_link(url):
     try:
-        hwid = url.split("HWID=")[-1]
+        hwid = url.split("HWID=")[1]
         if not hwid:
-            raise Exception("Invalid HWID in URL")
+            raise ValueError("Invalid HWID in URL")
 
         start_time = time.time()
-
-        endpoints = [
-            {"url": f"https://flux.li/android/external/start.php?HWID={hwid}", "referer": ""},
+        steps = [
             {"url": "https://flux.li/android/external/check1.php?hash={hash}", "referer": "https://linkvertise.com"},
-            {"url": "https://flux.li/android/external/main.php?hash={hash}", "referer": "https://linkvertise.com"}
+            {"url": "https://flux.li/android/external/main.php?hash={hash}", "referer": "https://linkvertise.com"},
         ]
 
-        for endpoint in endpoints:
-            url = endpoint["url"]
-            referer = endpoint["referer"]
+        for step in steps:
+            step_url = step["url"]
+            referer = step["referer"]
             headers = {
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'DNT': '1',
-                'Connection': 'close',
-                'Referer': referer,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "DNT": "1",
+                "Connection": "close",
+                "Referer": referer,
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x66) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
             }
-            response_text, fake_time = fetch(url, headers)
-            if endpoint == endpoints[-1]:  # Chỉ kiểm tra endpoint cuối cùng
-                match = re.search(key_regex, response_text)
+
+            html = fetchs(step_url, headers)
+
+            # Check for temporary ban or block message
+            if "You have been temporarily banned" in html:
+                return {
+                    "status": "error",
+                    "key": "You have been temporarily banned from using Fluxus.",
+                }
+
+            if "Trying to bypass the Fluxus key system will get you banned" in html:
+                return {
+                    "status": "error",
+                    "key": "Failed to bypass.",
+                }
+
+            # If we are at the last step, extract the key
+            if step == steps[-1]:
+                match = re.search(key_regex, html)
                 if match:
-                    end_time = time.time()
-                    time_taken = end_time - start_time
-                    return match.group(1), time_taken
+                    time_taken = round(time.time() - start_time, 2)
+                    return {"status": "success", "result": match.group(1), "timeTaken": time_taken}
                 else:
-                    raise Exception("Failed to find content key")
+                    raise Exception("Failed to bypass")
+
     except Exception as e:
         raise Exception(f"Failed to bypass link. Error: {e}")
 
-@app.route("/api/fluxus")
-def bypass():
-    global request_count
-    request_count = read_request_count() + 1
-    write_request_count(request_count)
+@app.route('/bypass', methods=['GET'])
+def api_bypass():
+    # Get the HWID parameter from the query string
+    url = request.args.get('url')
     
-    url = request.args.get("url")
-    if url and url.startswith("https://flux.li/android/external/start.php?HWID="):
-        try:
-            headers = {
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'DNT': '1',
-                'Connection': 'close',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-            }
-            content, fake_time = bypass_link(url)
-            return jsonify({"key": content, "time_taken": "0.1", "credit": "UwU"})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"message": "Please Enter a Valid Fluxus Link!"})
+    if not url:
+        return jsonify({"status": "error", "message": "URL parameter is required."}), 400
+
+    try:
+        result = bypass_link(url)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/check")
 def check():
