@@ -52,16 +52,11 @@ def get_client_ip():
 def index():
     return render_template('index.html')
 
-def fetch(url, headers):
+def fetchs(url, headers):
     try:
-        # Giả lập thời gian phản hồi từ 0.1 đến 0.2 giây
-        fake_time = random.uniform(0.1, 0.2)
-        time.sleep(fake_time)
-
-        # Thực hiện yêu cầu HTTP
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        return response.text, fake_time
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.text
     except requests.exceptions.RequestException as e:
         raise Exception(f"Failed to fetch URL: {url}. Error: {e}")
 
